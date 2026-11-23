@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expense Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a small, calm money tool that feels like a shipped app
+   IDEA: a receipt-like ledger beside one big total
+   PICTURE: the total in a mint field + category bars, ledger below
+   COLOUR & TYPE: black and white plus one mint field; Space Grotesk + Inter
+   LAYOUT: top bar, mint total panel | add form, then ledger and categories */
+:root{color-scheme:light dark;
+  --bg:light-dark(#ffffff,#0c0c0c);--ink:light-dark(#111111,#f2f2f2);
+  --mute:light-dark(#5c5c5c,#a3a3a3);--line:light-dark(#e4e4e4,#2a2a2a);
+  --soft:light-dark(#f6f6f6,#161616);--mint:light-dark(#b8f5d0,#b8f5d0);
+  --on-mint:#0b2a18;--red:light-dark(#b3261e,#ff8a80)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c0c0c;--ink:#f2f2f2;--mute:#a3a3a3;--line:#2a2a2a;--soft:#161616;--red:#ff8a80}}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px)}
+header{border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;flex-wrap:wrap}
+.logo{font:700 20px/1 "Space Grotesk",sans-serif;display:flex;align-items:center;gap:10px}
+.logo svg{width:28px;height:28px}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+h2{font:700 22px/1.15 "Space Grotesk",sans-serif;margin:0 0 14px}
+button,input,select{font:inherit;font-size:16px}
+button{min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 16px;cursor:pointer;font-weight:600}
+button:hover{background:var(--soft)}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button.primary:hover{opacity:.9}
+button.danger{color:var(--red)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #1f9d55;outline-offset:2px}
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:0;border-bottom:1px solid var(--line)}
+.total{background:var(--mint);color:var(--on-mint);padding:clamp(24px,4vw,48px) max(4vw,16px);display:flex;flex-direction:column;justify-content:space-between;gap:24px;min-height:360px}
+.total .label{font-weight:600;font-size:15px}
+.total .big{font:700 clamp(44px,8vw,88px)/1 "Space Grotesk",sans-serif;white-space:nowrap;letter-spacing:-.02em}
+.total .sub{font-size:15px;opacity:.8}
+.cats{display:grid;gap:10px}
+.cat{display:grid;grid-template-columns:7.5em minmax(0,1fr) auto;gap:10px;align-items:center;font-size:14px}
+.cat .track{height:12px;background:rgba(11,42,24,.12);border-radius:6px;overflow:hidden}
+.cat .fill{height:100%;background:var(--on-mint);border-radius:6px;transition:width .4s ease}
+.cat b{white-space:nowrap;font-variant-numeric:tabular-nums}
+.cat-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.cat .fill{transition:none}}
+.add{padding:clamp(24px,4vw,48px) max(4vw,16px)}
+form{display:grid;gap:14px;max-width:520px}
+label{display:grid;gap:6px;font-size:14px;font-weight:500}
+input,select{min-height:44px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--bg);color:var(--ink)}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:12px}
+.hint{font-size:13px;color:var(--mute);margin:0}
+.msg{min-height:1.5em;font-size:14px;font-weight:500;margin:0}
+.msg.err{color:var(--red)}.msg.ok{color:#1f9d55}
+main .wrap{padding-top:clamp(24px,4vw,48px);padding-bottom:clamp(24px,4vw,48px)}
+.toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px}
+.toolbar label{min-width:180px}
+.toolbar .grow{flex:1}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:13px;color:var(--mute);font-weight:500}
+td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+td .pill{display:inline-block;font-size:13px;padding:2px 10px;border-radius:12px;background:var(--soft);border:1px solid var(--line)}
+td button{min-height:36px;padding:0 10px;font-size:14px}
+.empty{padding:40px 16px;text-align:center;color:var(--mute);border:1px dashed var(--line);border-radius:10px}
+.empty b{display:block;color:var(--ink);font:700 18px "Space Grotesk",sans-serif;margin-bottom:4px}
+.side{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:clamp(20px,3vw,40px)}
+.card{border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--soft)}
+.card h3{margin:0 0 10px;font:700 16px "Space Grotesk",sans-serif}
+.rates{width:100%}.rates td{padding:6px 0;border:0}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;display:none;gap:12px;align-items:center;font-size:14px;z-index:9;max-width:calc(100vw - 32px)}
+.toast.show{display:flex}
+.toast button{min-height:34px;background:transparent;color:var(--bg);border-color:var(--bg)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);padding:20px;max-width:360px}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+footer{border-top:1px solid var(--line);font-size:13px;color:var(--mute)}
+footer .wrap{padding-top:18px;padding-bottom:24px}
+footer a{color:inherit}
+@media(max-width:900px){.hero{grid-template-columns:minmax(0,1fr)}.side{grid-template-columns:minmax(0,1fr)}.total{min-height:0}}
+@media(max-width:600px){.two{grid-template-columns:minmax(0,1fr)}table{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:6.5em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:6em;margin-inline-start:-6.5em;color:var(--mute);font-size:12px}.stack td:empty{display:none}.stack td.n{text-align:start}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="logo">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="6" fill="#b8f5d0"/><path d="M9 12h14M9 17h9M9 22h6" stroke="#0b2a18" stroke-width="2.5" stroke-linecap="round"/></svg>
+    Expense Tracker
+  </div>
+  <div class="top-actions">
+    <button type="button" id="exportJson">Export JSON</button>
+    <button type="button" id="exportCsv">Export CSV</button>
+    <button type="button" class="danger" id="clearAll">Clear all</button>
+  </div>
+</div></header>
+
+<section class="hero">
+  <div class="total" aria-live="polite">
+    <div>
+      <div class="label">Total spent, in tenge</div>
+      <div class="big" id="total">0 ₸</div>
+      <div class="sub" id="count">No expenses yet</div>
+    </div>
+    <div class="cats" id="cats"></div>
+  </div>
+  <div class="add">
+    <h2>Add an expense</h2>
+    <form id="form" novalidate>
+      <label>Title<input id="title" required maxlength="60" placeholder="Coffee" autocomplete="off"></label>
+      <div class="two">
+        <label>Amount<input id="amount" required inputmode="decimal" placeholder="1500 or 1500+300" autocomplete="off"></label>
+        <label>Currency<select id="currency"></select></label>
+      </div>
+      <label>Category<input id="category" list="catList" maxlength="30" placeholder="food" autocomplete="off"></label>
+      <datalist id="catList"></datalist>
+      <button class="primary" type="submit">Add expense</button>
+      <p class="msg" id="msg" role="status"></p>
+      <p class="hint">Amounts are positive numbers; you may add parts with “+”. Nothing you type is ever run as code.</p>
+    </form>
+  </div>
+</section>
+
+<main><div class="wrap side">
+  <section>
+    <h2>Expenses</h2>
+    <div class="toolbar">
+      <label class="grow">Search<input id="search" type="search" placeholder="Title or category" autocomplete="off"></label>
+      <label>Category<select id="filter"><option value="">All categories</option></select></label>
+    </div>
+    <div id="tableBox"></div>
+  </section>
+  <aside>
+    <div class="card">
+      <h3>Exchange rates</h3>
+      <table class="rates" id="rates"></table>
+      <p class="hint">Fixed rates used by the project, not live market rates.</p>
+    </div>
+  </aside>
+</div></main>
+
+<footer><div class="wrap">
+  Expense Tracker · web version of the Python project by Ospanova Zarina (KBTU, Software Engineering).
+  Data is saved only in this browser. Source: <a href="https://github.com/zarinaospanova/expense-tracker">github.com/zarinaospanova/expense-tracker</a>
+</div></footer>
+
+<div class="toast" id="toast" role="status"><span id="toastText"></span><button type="button" id="undo">Undo</button></div>
+<dialog id="confirm">
+  <p style="margin:0"><b>Delete all expenses?</b><br>This removes every expense saved in this browser.</p>
+  <div class="btns"><button type="button" id="cancelClear">Cancel</button><button type="button" class="primary" id="okClear">Delete all</button></div>
+</dialog>
+
+<script>
+{
+  // Same rules as expense_tracker/calculator.py (final version)
+  const RATES = {KZT: 1, USD: 480, EUR: 520, RUB: 5};
+  const KEY = "expense-tracker-v1";
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fmt = n => n.toLocaleString("en-US", {maximumFractionDigits: 2});
+
+  function parseAmount(text) {
+    const parts = String(text).split("+").map(p => p.trim());
+    if (parts.some(p => !/^\d*\.?\d+(e[+-]?\d+)?$/i.test(p))) throw new Error(`Invalid amount: "${text}"`);
+    const nums = parts.map(Number);
+    if (nums.some(n => !Number.isFinite(n) || n < 0)) throw new Error(`Invalid amount: "${text}"`);
+    const sum = nums.reduce((a, b) => a + b, 0);
+    if (sum <= 0) throw new Error("Amount must be greater than zero");
+    return sum;
+  }
+  const toKzt = (amount, cur) => {
+    if (!(cur in RATES)) throw new Error("Unknown currency: " + cur);
+    return amount * RATES[cur];
+  };
+
+  let items = [];
+  try {
+    const raw = localStorage.getItem(KEY);
+    const data = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(data)) items = data.filter(e => e && typeof e.amount === "number" && e.currency in RATES);
+  } catch (e) { items = []; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (e) {} };
+
+  let lastRemoved = null, toastTimer = null;
+
+  $("currency").innerHTML = Object.keys(RATES).map(c => `<option>${c}</option>`).join("");
+  $("rates").innerHTML = Object.entries(RATES).map(([c, r]) =>
+    `<tr><td>1 ${c}</td><td class="n" style="text-align:right">${fmt(r)} ₸</td></tr>`).join("");
+
+  function render() {
+    const total = items.reduce((s, e) => s + toKzt(e.amount, e.currency), 0);
+    $("total").textContent = fmt(total) + " ₸";
+    $("count").textContent = items.length ? `${items.length} expense${items.length === 1 ? "" : "s"}` : "No expenses yet";
+
+    const byCat = {};
+    items.forEach(e => byCat[e.category] = (byCat[e.category] || 0) + toKzt(e.amount, e.currency));
+    const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+    const max = cats.length ? cats[0][1] : 1;
+    $("cats").innerHTML = cats.slice(0, 5).map(([c, v]) =>
+      `<div class="cat"><span class="cat-name">${esc(c)}</span><div class="track"><div class="fill" style="width:${(v / max * 100).toFixed(1)}%"></div></div><b>${fmt(v)} ₸</b></div>`).join("");
+
+    const names = [...new Set(items.map(e => e.category))].sort();
+    $("catList").innerHTML = names.map(c => `<option value="${esc(c)}">`).join("");
+    const f = $("filter"), keep = f.value;
+    f.innerHTML = `<option value="">All categories</option>` + names.map(c => `<option${c === keep ? " selected" : ""}>${esc(c)}</option>`).join("");
+    if (!names.includes(keep)) f.value = "";
+
+    const q = $("search").value.trim().toLowerCase();
+    const shown = items.map((e, i) => ({...e, i})).reverse()
+      .filter(e => (!f.value || e.category === f.value) && (!q || (e.title + " " + e.category).toLowerCase().includes(q)));
+
+    if (!items.length) {
+      $("tableBox").innerHTML = `<div class="empty"><b>No expenses yet</b>Add your first one with the form above.</div>`;
+    } else if (!shown.length) {
+      $("tableBox").innerHTML = `<div class="empty"><b>Nothing matches</b>Try another search or category.</div>`;
+    } else {
+      $("tableBox").innerHTML = `<table class="stack"><thead><tr><th>Title</th><th>Category</th><th class="n">Amount</th><th class="n">In KZT</th><th></th></tr></thead><tbody>` +
+        shown.map(e => `<tr><td>${esc(e.title)}</td><td><span class="pill">${esc(e.category)}</span></td>` +
+          `<td class="n">${fmt(e.amount)} ${e.currency}</td><td class="n">${fmt(toKzt(e.amount, e.currency))} ₸</td>` +
+          `<td class="n"><button type="button" data-del="${e.i}" aria-label="Delete ${esc(e.title)}">Delete</button></td></tr>`).join("") +
+        `</tbody></table>`;
+    }
+  }
+
+  function say(text, ok) { $("msg").textContent = text; $("msg").className = "msg " + (ok ? "ok" : "err"); }
+  function toast(text, canUndo) {
+    $("toastText").textContent = text;
+    $("undo").style.display = canUndo ? "" : "none";
+    $("toast").classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $("toast").classList.remove("show"), 5000);
+  }
+
+  $("form").addEventListener("submit", ev => {
+    ev.preventDefault();
+    const title = $("title").value.trim();
+    if (!title) { say("Please enter a title.", false); $("title").focus(); return; }
+    try {
+      const amount = parseAmount($("amount").value);
+      const currency = $("currency").value;
+      toKzt(amount, currency);
+      const category = $("category").value.trim().toLowerCase() || "other";
+      items.push({title, amount, category, currency});
+      save(); render();
+      say(`Added: ${title}, ${fmt(amount)} ${currency}`, true);
+      $("title").value = ""; $("amount").value = ""; $("title").focus();
+    } catch (e) {
+      say("Error: " + e.message + ". Nothing was saved.", false);
+      $("amount").focus();
+    }
+  });
+
+  $("tableBox").addEventListener("click", ev => {
+    const b = ev.target.closest("[data-del]");
+    if (!b) return;
+    const i = Number(b.dataset.del);
+    lastRemoved = {index: i, item: items[i]};
+    items.splice(i, 1); save(); render();
+    toast(`Deleted “${lastRemoved.item.title}”`, true);
+  });
+  $("undo").addEventListener("click", () => {
+    if (Array.isArray(lastRemoved)) { items = lastRemoved; }
+    else if (lastRemoved) { items.splice(lastRemoved.index, 0, lastRemoved.item); }
+    lastRemoved = null; save(); render();
+    $("toast").classList.remove("show");
+  });
+
+  $("search").addEventListener("input", render);
+  $("filter").addEventListener("change", render);
+
+  const dlg = $("confirm");
+  $("clearAll").addEventListener("click", () => {
+    if (!items.length) { toast("There is nothing to clear.", false); return; }
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  });
+  $("cancelClear").addEventListener("click", () => dlg.close());
+  $("okClear").addEventListener("click", () => {
+    lastRemoved = items.slice(); items = []; save(); render(); dlg.close();
+    toast("All expenses deleted", true);
+  });
+
+  function download(name, text, type) {
+    const url = URL.createObjectURL(new Blob([text], {type}));
+    const a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  $("exportJson").addEventListener("click", () => {
+    if (!items.length) { toast("Add an expense first.", false); return; }
+    download("expenses.json", JSON.stringify(items, null, 2), "application/json");
+  });
+  $("exportCsv").addEventListener("click", () => {
+    if (!items.length) { toast("Add an expense first.", false); return; }
+    const cell = v => { let s = String(v); if (/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+    const rows = [["title", "amount", "currency", "category", "amount_kzt"]]
+      .concat(items.map(e => [e.title, e.amount, e.currency, e.category, toKzt(e.amount, e.currency)]));
+    download("expenses.csv", rows.map(r => r.map(cell).join(",")).join("\n"), "text/csv");
+  });
+
+  render();
+}
+</script>
+</body>
+</html>
