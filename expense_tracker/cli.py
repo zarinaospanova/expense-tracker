@@ -1,5 +1,6 @@
 """Command line interface."""
 import argparse
+import sys
 
 from . import calculator, storage
 
@@ -20,10 +21,23 @@ def main(argv=None):
     sub.add_parser("summary")
 
     args = parser.parse_args(argv)
-    expenses = storage.load(DATA_FILE)
+    if args.command is None:
+        parser.print_help()
+        return 0
+
+    try:
+        expenses = storage.load(DATA_FILE)
+    except storage.StorageError as exc:
+        print("Error:", exc, file=sys.stderr)
+        return 1
 
     if args.command == "add":
-        amount = calculator.parse_amount(args.amount)
+        try:
+            amount = calculator.parse_amount(args.amount)
+            calculator.convert_to_kzt(amount, args.currency)
+        except ValueError as exc:
+            print("Error:", exc, file=sys.stderr)
+            return 2
         calculator.add_expense(expenses, args.title, amount,
                                args.category, args.currency)
         storage.save(expenses, DATA_FILE)
@@ -35,5 +49,4 @@ def main(argv=None):
         print("Total (KZT):", calculator.total(expenses))
         for cat, value in calculator.total_by_category(expenses).items():
             print(f"  {cat}: {value}")
-    else:
-        parser.print_help()
+    return 0

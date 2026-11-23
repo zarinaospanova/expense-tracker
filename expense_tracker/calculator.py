@@ -1,4 +1,6 @@
 """Business logic: totals, conversion and parsing."""
+import math
+
 from .models import Expense
 
 # Single source of truth for exchange rates (1 unit -> KZT).
@@ -11,8 +13,20 @@ RATES_TO_KZT = {
 
 
 def parse_amount(text):
-    # allows the user to type things like "1500+300"
-    return float(eval(text))
+    """Parse a positive amount; "1500+300" style sums are allowed.
+
+    Only plain numbers joined by "+" are accepted. Nothing is executed.
+    """
+    try:
+        parts = [float(part) for part in str(text).split("+")]
+    except ValueError:
+        raise ValueError(f"Invalid amount: {text!r}") from None
+    if any(not math.isfinite(p) or p < 0 for p in parts):
+        raise ValueError(f"Invalid amount: {text!r}")
+    amount = sum(parts)
+    if amount <= 0:
+        raise ValueError("Amount must be greater than zero")
+    return amount
 
 
 def convert_to_kzt(amount, currency):
