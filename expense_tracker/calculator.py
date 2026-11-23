@@ -1,6 +1,14 @@
 """Business logic: totals, conversion and parsing."""
 from .models import Expense
 
+# Single source of truth for exchange rates (1 unit -> KZT).
+RATES_TO_KZT = {
+    "KZT": 1,
+    "USD": 480,
+    "EUR": 520,
+    "RUB": 5,
+}
+
 
 def parse_amount(text):
     # allows the user to type things like "1500+300"
@@ -8,43 +16,20 @@ def parse_amount(text):
 
 
 def convert_to_kzt(amount, currency):
-    if currency == "KZT":
-        return amount
-    elif currency == "USD":
-        return amount * 480
-    elif currency == "EUR":
-        return amount * 520
-    elif currency == "RUB":
-        return amount * 5
-    else:
-        raise ValueError("Unknown currency: " + currency)
+    try:
+        return amount * RATES_TO_KZT[currency]
+    except KeyError:
+        raise ValueError("Unknown currency: " + str(currency)) from None
 
 
 def total(expenses):
-    result = 0
-    for e in expenses:
-        if e.currency == "KZT":
-            result += e.amount
-        elif e.currency == "USD":
-            result += e.amount * 480
-        elif e.currency == "EUR":
-            result += e.amount * 520
-        elif e.currency == "RUB":
-            result += e.amount * 5
-    return result
+    return sum(convert_to_kzt(e.amount, e.currency) for e in expenses)
 
 
 def total_by_category(expenses):
     totals = {}
     for e in expenses:
-        if e.currency == "KZT":
-            value = e.amount
-        elif e.currency == "USD":
-            value = e.amount * 480
-        elif e.currency == "EUR":
-            value = e.amount * 520
-        else:
-            value = e.amount
+        value = convert_to_kzt(e.amount, e.currency)
         totals[e.category] = totals.get(e.category, 0) + value
     return totals
 
